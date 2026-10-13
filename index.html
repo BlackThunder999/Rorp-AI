@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rorp AI Studio</title>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #090b10;
+      --card-bg: #141721;
+      --accent: #f55036;
+      --accent-glow: rgba(245, 80, 54, 0.35);
+      --border: #232838;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    header {
+      padding: 14px 20px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo-area { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+    .logo-badge {
+      background: linear-gradient(135deg, #f55036, #ff7e40);
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 16px; color: white;
+    }
+    .status-badge { font-size: 12px; background: #1f2937; border: 1px solid #374151; padding: 4px 10px; border-radius: 20px; color: #10b981; }
+
+    #chat-stream { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
+
+    .bubble { max-width: 82%; padding: 14px 18px; border-radius: 14px; font-size: 14.5px; line-height: 1.6; word-break: break-word; }
+    .bubble.user { align-self: flex-end; background: #2563eb; color: #fff; border-bottom-right-radius: 2px; }
+    .bubble.ai { align-self: flex-start; background: var(--card-bg); border: 1px solid var(--border); border-bottom-left-radius: 2px; }
+    .bubble img, .bubble video { max-width: 100%; border-radius: 10px; margin-top: 10px; display: block; border: 1px solid var(--border); }
+
+    pre { background: #0d1117; border-radius: 8px; padding: 12px; margin-top: 8px; overflow-x: auto; border: 1px solid var(--border); }
+    code { font-family: monospace; font-size: 13px; }
+
+    .typing-box { display: flex; gap: 6px; align-items: center; padding: 12px 18px; }
+    .dot { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; animation: jump 1.4s infinite ease-in-out both; }
+    .dot:nth-child(1) { animation-delay: -0.32s; }
+    .dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes jump { 0%, 80%, 100% { transform: scale(0); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
+
+    #media-preview-container { display: none; padding: 8px 20px 0; background: var(--bg); }
+    .preview-card { display: inline-flex; align-items: center; gap: 10px; background: var(--card-bg); border: 1px solid var(--border); padding: 6px 12px; border-radius: 8px; }
+    .preview-card img { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; }
+    .remove-file { cursor: pointer; color: #ef4444; font-weight: bold; margin-left: 6px; }
+
+    footer { padding: 14px 20px; background: var(--card-bg); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+    .attach-btn {
+      background: #1f2433; border: 1px solid var(--border); color: var(--text-muted);
+      width: 44px; height: 44px; border-radius: 10px; display: flex;
+      align-items: center; justify-content: center; cursor: pointer;
+    }
+    .attach-btn:hover { color: #fff; background: #283044; }
+
+    #input-text { flex: 1; background: #0d1017; border: 1px solid var(--border); color: #fff; padding: 12px 16px; border-radius: 10px; outline: none; font-size: 14px; }
+    #input-text:focus { border-color: var(--accent); }
+    .send-btn { background: var(--accent); border: none; color: white; width: 44px; height: 44px; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: bold; }
+    .send-btn:hover { background: #e0442c; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-area">
+      <div class="logo-badge">⚡</div>
+      <span>Rorp AI</span>
+    </div>
+    <div class="status-badge">● Онлайн</div>
+  </header>
+
+  <div id="chat-stream">
+    <div class="bubble ai">
+      🚀 Привет! Это <b>Rorp AI</b>.<br><br>
+      • Задавай любые вопросы и проси <b>написать код</b>.<br>
+      • Прикрепляй <b>фото</b> через скрепку 📎 для разбора.<br>
+      • Пиши <code>/draw запрос</code> для рисования картинок.<br>
+      • Пиши <code>/video запрос</code> для генерации видеороликов.
+    </div>
+  </div>
+
+  <div id="media-preview-container">
+    <div class="preview-card">
+      <span id="preview-thumb"></span>
+      <span id="preview-name" style="font-size: 12px; color: var(--text-muted);"></span>
+      <span class="remove-file" id="remove-file-btn">✕</span>
+    </div>
+  </div>
+
+  <footer>
+    <label class="attach-btn" title="Прикрепить изображение">
+      📎
+      <input type="file" id="media-input" accept="image/*" style="display: none;">
+    </label>
+    <input type="text" id="input-text" placeholder="Задай вопрос, прикрепи фото, или введи /draw, /video...">
+    <button class="send-btn" id="send-btn">➤</button>
+  </footer>
+
+  <script>
+    // Твои подключённые данные Supabase
+    const SUPABASE_FUNCTION_URL = "https://blqnptqngsbjkllhmdxf.supabase.co/functions/v1/super-service";
+    const SUPABASE_ANON_KEY = "sb_publishable_h2gqeUWDg852OyE3GisoZA_Ib9S9qf_";
+
+    const chatStream = document.getElementById('chat-stream');
+    const inputText = document.getElementById('input-text');
+    const sendBtn = document.getElementById('send-btn');
+    const mediaInput = document.getElementById('media-input');
+    const previewContainer = document.getElementById('media-preview-container');
+    const previewThumb = document.getElementById('preview-thumb');
+    const previewName = document.getElementById('preview-name');
+    const removeFileBtn = document.getElementById('remove-file-btn');
+
+    let currentBase64Image = null;
+
+    mediaInput.addEventListener('change', () => {
+      const file = mediaInput.files[0];
+      if (!file) return;
+
+      previewContainer.style.display = 'block';
+      previewName.textContent = file.name.slice(0, 15) + '...';
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        currentBase64Image = reader.result;
+        previewThumb.innerHTML = `<img src="${currentBase64Image}">`;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    removeFileBtn.addEventListener('click', clearFile);
+
+    function clearFile() {
+      currentBase64Image = null;
+      mediaInput.value = '';
+      previewContainer.style.display = 'none';
+      previewThumb.innerHTML = '';
+    }
+
+    function appendMessage(content, sender, mediaUrl = null, isVideo = false) {
+      const bubble = document.createElement('div');
+      bubble.className = `bubble ${sender}`;
+
+      if (sender === 'ai') {
+        bubble.innerHTML = marked.parse(content);
+        bubble.querySelectorAll('pre code').forEach((block) => {
+          hljs.highlightElement(block);
+        });
+      } else {
+        bubble.textContent = content;
+      }
+
+      if (mediaUrl) {
+        if (isVideo) {
+          const video = document.createElement('video');
+          video.src = mediaUrl;
+          video.controls = true;
+          bubble.appendChild(video);
+        } else {
+          const img = document.createElement('img');
+          img.src = mediaUrl;
+          bubble.appendChild(img);
+        }
+      }
+
+      chatStream.appendChild(bubble);
+      chatStream.scrollTop = chatStream.scrollHeight;
+    }
+
+    function showTyping() {
+      const typing = document.createElement('div');
+      typing.className = 'bubble ai typing-box';
+      typing.id = 'typing-indicator';
+      typing.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+      chatStream.appendChild(typing);
+      chatStream.scrollTop = chatStream.scrollHeight;
+    }
+
+    function hideTyping() {
+      const el = document.getElementById('typing-indicator');
+      if (el) el.remove();
+    }
+
+    async function handleSend() {
+      const text = inputText.value.trim();
+      if (!text && !currentBase64Image) return;
+
+      const attachedImg = currentBase64Image;
+      appendMessage(text || 'Анализ фото...', 'user', attachedImg);
+
+      inputText.value = '';
+      clearFile();
+
+      // Генерация картинок (/draw)
+      if (text.startsWith('/draw ')) {
+        const prompt = text.replace('/draw ', '').trim();
+        showTyping();
+        setTimeout(() => {
+          hideTyping();
+          const seed = Math.floor(Math.random() * 999999);
+          const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=800&height=800&nologo=true&seed=${seed}`;
+          appendMessage(`Вот изображение по запросу: **${prompt}**`, 'ai', imgUrl);
+        }, 1200);
+        return;
+      }
+
+      // Генерация видео (/video)
+      if (text.startsWith('/video ')) {
+        const prompt = text.replace('/video ', '').trim();
+        showTyping();
+        setTimeout(() => {
+          hideTyping();
+          const seed = Math.floor(Math.random() * 999999);
+          const vidUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=video&seed=${seed}`;
+          appendMessage(`🎬 Видео по запросу: **${prompt}**`, 'ai', vidUrl, true);
+        }, 2500);
+        return;
+      }
+
+      // Запрос к Supabase Edge Function
+      showTyping();
+
+      try {
+        const response = await fetch(SUPABASE_FUNCTION_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({
+            message: text,
+            imageBase64: attachedImg
+          })
+        });
+
+        const data = await response.json();
+        hideTyping();
+
+        if (data.error) {
+          appendMessage(`⚠️ Ошибка: ${data.error}`, 'ai');
+        } else if (data.choices && data.choices[0]) {
+          const aiReply = data.choices[0].message.content;
+          appendMessage(aiReply, 'ai');
+        } else {
+          appendMessage('Не удалось получить ответ.', 'ai');
+        }
+      } catch (err) {
+        hideTyping();
+        appendMessage(`Ошибка подключения: ${err.message}`, 'ai');
+      }
+    }
+
+    sendBtn.addEventListener('click', handleSend);
+    inputText.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleSend();
+    });
+  </script>
+</body>
+</html>
