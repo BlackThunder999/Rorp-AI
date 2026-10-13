@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rorp AI — Генерация видео, фото, текста</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height: 100vh;
+    color: white;
+    overflow-x: hidden;
+  }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+  
+  /* Анимация появления */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.5); }
+    50% { box-shadow: 0 0 40px rgba(102, 126, 234, 0.8); }
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  
+  .header { text-align: center; margin-bottom: 50px; animation: fadeInUp 0.8s ease; }
+  .logo {
+    font-size: 56px; font-weight: 900; letter-spacing: -2px;
+    background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 10px;
+  }
+  .subtitle { font-size: 18px; opacity: 0.8; }
+  
+  .models { display: flex; gap: 10px; justify-content: center; margin-bottom: 40px; flex-wrap: wrap; animation: fadeInUp 0.8s ease 0.2s both; }
+  .model-btn {
+    padding: 12px 24px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05); color: white; font-size: 14px;
+    cursor: pointer; transition: all 0.3s; backdrop-filter: blur(10px);
+  }
+  .model-btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+  .model-btn.active {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-color: transparent; animation: glow 2s infinite;
+  }
+  .model-btn .badge {
+    display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px;
+    background: rgba(255,255,255,0.2); margin-left: 6px; vertical-align: middle;
+  }
+  
+  .input-area { margin-bottom: 30px; animation: fadeInUp 0.8s ease 0.4s both; }
+  textarea {
+    width: 100%; padding: 18px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05); color: white; font-size: 16px;
+    resize: vertical; min-height: 100px; backdrop-filter: blur(10px);
+    transition: border-color 0.3s;
+  }
+  textarea:focus { outline: none; border-color: #667eea; }
+  textarea::placeholder { color: rgba(255,255,255,0.4); }
+  
+  .generate-btn {
+    width: 100%; padding: 18px; margin-top: 15px; border-radius: 16px; border: none;
+    background: linear-gradient(135deg, #667eea, #764ba2); color: white;
+    font-size: 18px; font-weight: 700; cursor: pointer; transition: all 0.3s;
+    position: relative; overflow: hidden;
+  }
+  .generate-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4); }
+  .generate-btn:active { transform: translateY(0); }
+  .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  
+  .result-area {
+    margin-top: 30px; padding: 20px; border-radius: 16px;
+    background: rgba(255,255,255,0.05); backdrop-filter: blur(10px);
+    min-height: 100px; animation: fadeInUp 0.8s ease 0.6s both;
+    display: none;
+  }
+  .result-area.show { display: block; }
+  .result-area img, .result-area video { max-width: 100%; border-radius: 12px; margin-top: 10px; }
+  .result-area p { line-height: 1.7; white-space: pre-wrap; }
+  
+  .loading {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    padding: 30px; color: rgba(255,255,255,0.7);
+  }
+  .spinner {
+    width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.2);
+    border-top-color: #667eea; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  
+  .footer { text-align: center; margin-top: 60px; opacity: 0.5; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">Rorp AI</div>
+    <div class="subtitle">Генерация видео, фото и текста — бесплатно</div>
+  </div>
+
+  <div class="models">
+    <button class="model-btn active" data-model="video">🎬 Rorp Video 1.1 <span class="badge">Base</span></button>
+    <button class="model-btn" data-model="image">🖼️ Rorp Image 1.0 <span class="badge">Base</span></button>
+    <button class="model-btn" data-model="text">✍️ Rorp Text 1.0 <span class="badge">Base</span></button>
+  </div>
+
+  <div class="input-area">
+    <textarea id="prompt" placeholder="Опиши, что хочешь сгенерировать..."></textarea>
+    <button class="generate-btn" id="generateBtn" onclick="generate()">Сгенерировать</button>
+  </div>
+
+  <div class="result-area" id="resultArea"></div>
+
+  <div class="footer">Rorp AI © 2026 | Работает на бесплатных открытых моделях</div>
+</div>
+
+<script>
+const modelBtns = document.querySelectorAll('.model-btn');
+let currentModel = 'video';
+
+modelBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    modelBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentModel = btn.dataset.model;
+  });
+});
+
+async function generate() {
+  const prompt = document.getElementById('prompt').value.trim();
+  if (!prompt) return alert('Введи промпт!');
+  
+  const btn = document.getElementById('generateBtn');
+  const resultArea = document.getElementById('resultArea');
+  const result = document.getElementById('result');
+  
+  btn.disabled = true;
+  resultArea.classList.add('show');
+  resultArea.innerHTML = '<div class="loading"><div class="spinner"></div><span>Генерирую...</span></div>';
+  
+  try {
+    if (currentModel === 'video') {
+      // Pollinations видео API (бесплатно, без ключа)
+      const url = `https://video.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
+      resultArea.innerHTML = `<p><strong>Rorp Video 1.1</strong></p><video src="${url}" controls autoplay loop></video>`;
+    } else if (currentModel === 'image') {
+      // Pollinations image API (бесплатно, без ключа)
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true`;
+      resultArea.innerHTML = `<p><strong>Rorp Image 1.0</strong></p><img src="${url}" alt="${prompt}" onload="this.style.opacity=1">`;
+    } else {
+      // Pollinations text API (бесплатно, без ключа)
+      const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}`);
+      const text = await response.text();
+      resultArea.innerHTML = `<p><strong>Rorp Text 1.0</strong></p><p>${text.replace(/\n/g, '<br>')}</p>`;
+    }
+  } catch (e) {
+    resultArea.innerHTML = `<p style="color: #ff6b6b;">Ошибка: ${e.message}. Попробуй ещё раз.</p>`;
+  }
+  
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
